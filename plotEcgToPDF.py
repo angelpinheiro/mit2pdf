@@ -349,7 +349,6 @@ pg = 1
 pdf = PdfPages(toPdf)
 
 print "\nResulting PDF will have " + str(pages) + " pages"
-print start, samples, offset + limit, samplesPerLead
 
 # iterate and print pages      
 while start < samples:

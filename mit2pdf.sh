@@ -8,8 +8,8 @@
 ################################################################################
 currdir=`pwd`
 
-if [ $# -lt 0 ]; then
-    echo "Usage: sshowMitRecord record [limit]"
+if [ $# -eq 0 ]; then
+    echo "Usage: sshowMitRecord record [samplesLimit] [samplesOffset]"
     exit 0
 fi
 
@@ -44,10 +44,10 @@ done < <(rdann -r ${record} -a atr)
 echo "]}" >> ${recordName}.ecgbeats
 
 echo "Generating PDF..."
-python plotEcgToPDF.py -i ${recordName}.csv -a ${recordName}.ecgbeats --limit ${limit}  --offset ${offset} -c 2 --showQRS true -o  ${recordName}.pdf
+python plotEcgToPDF.py -i ${recordName}.csv -a ${recordName}.ecgbeats --limit ${limit} --offset ${offset} -c 2 --showQRS true -o  ${recordName}.pdf
 
 echo "Cleaning up..."
 rm ${recordName}.csv 2> /dev/null
-#rm ${recordName}.ecgbeats 2> /dev/null
+rm ${recordName}.ecgbeats 2> /dev/null
 
 echo "Done. Check "${recordName}.pdf
