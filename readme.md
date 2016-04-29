@@ -2,7 +2,7 @@
 Utilidade que permite xerar un PDF anotado a partires dun rexistro en formato MIT-BIH.
 
 ```
-$ ./mit2pdf recordPath recordName [numberOfSamples]
+$ ./mit2pdf record [samplesLimit] [samplesOffset]
 ```
 
 
