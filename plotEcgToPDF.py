@@ -324,7 +324,7 @@ annotationsFile = options.annotationsFile
 eventsFile = options.eventsFile
 channels = int(options.channels)
 limit = int(options.limit)
-offset = int(options.offset) * channels
+offset = int(options.offset)
 showAnns = options.showAnns
 showFamilies = options.showFamilies
 familiesFile = options.familiesFile
@@ -337,8 +337,8 @@ annotations = readAnnotations(annotationsFile)
 events = loadEventsFromJson(eventsFile);
 
 totalSamples = len(data)
-samplesPerLead = totalSamples / channels
-samples = min(samplesPerLead, limit) if limit > 0 else samplesPerLead
+samplesPerLead = totalSamples
+samples = min(samplesPerLead, offset + limit) if limit > 0 else samplesPerLead
 pageSize = 3000  # by channel
 start = offset
 axInit = 0
@@ -349,6 +349,7 @@ pg = 1
 pdf = PdfPages(toPdf)
 
 print "\nResulting PDF will have " + str(pages) + " pages"
+print start, samples, offset + limit, samplesPerLead
 
 # iterate and print pages      
 while start < samples:
