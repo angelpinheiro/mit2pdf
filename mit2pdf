@@ -143,7 +143,7 @@ parser = OptionParser()
 parser.add_option("-r", "--record", dest="record", default="", help="Record to print")
 parser.add_option("-a", "--annotator", dest="annotator", default="atr", help="Annotator")
 parser.add_option("-o", "--offset", dest="offset", default="0", help="Offset to start printing in seconds or as an absolute instant in the format hh:mm:ss (default=0)")
-parser.add_option("-l", "--limit", dest="limit", default="60", help="Limit to print in seconds or as an absolute instant in the format hh:mm:ss (default=60)")
+parser.add_option("-l", "--limit", dest="limit", default="", help="Limit to print in seconds or as an absolute instant in the format hh:mm:ss (default=None)")
 parser.add_option("-p", "--pageSize", dest="pageSize", default=10, help="Number of seconds per page (default=10)")
 parser.add_option("-f", "--filter", dest="filter", default="", help="Filter beat classes shown Ex:N,V")
 parser.add_option("-d", "--destination", dest="output", default="ecg.pdf", help="Output file")
@@ -174,25 +174,6 @@ if not 'freq' in header.keys():
 channels = len(header["channels"])
 freq = header["freq"]
 
-if ":" in options.offset:
-    t = datetime.strptime(options.offset,"%H:%M:%S")
-    secs = timedelta(hours=t.hour, minutes=t.minute, seconds=t.second).total_seconds()
-    offset = int(secs*freq)
-else:
-    offset=int(options.offset)*freq
-
-if ":" in options.limit:
-    t = datetime.strptime(options.limit,"%H:%M:%S")
-    secs = timedelta(hours=t.hour, minutes=t.minute, seconds=t.second).total_seconds()
-    limit = int(secs*freq-offset)
-else:
-    limit=int(options.limit)*freq
-
-pageSize = int(options.pageSize)*freq
-
-start = offset
-axEnd = pageSize
-axInit = 0
 
 # get record samples
 # print "Record info: ", header
@@ -201,12 +182,38 @@ print "Loading data and annotations for record " + recordName + "..."
 data = rdsamp(record)
 gain = header["channels"][0]["gain"]
 data = data / gain
-
-annotations = rdann(record,options.annotator)
 totalSamples = len(data)
 samplesPerLead = totalSamples
+
+if ":" in options.offset:
+    t = datetime.strptime(options.offset,"%H:%M:%S")
+    secs = timedelta(hours=t.hour, minutes=t.minute, seconds=t.second).total_seconds()
+    offset = int(secs*freq)
+else:
+    offset=int(options.offset)*freq
+
+if not options.limit:
+    limit = totalSamples - offset
+elif ":" in options.limit:
+    t = datetime.strptime(options.limit,"%H:%M:%S")
+    secs = timedelta(hours=t.hour, minutes=t.minute, seconds=t.second).total_seconds()
+    limit = int(secs*freq-offset)
+else:
+    limit=int(options.limit) - offset *freq
+
+
 samples = min(samplesPerLead, offset + limit) if limit > 0 else samplesPerLead
-pages = limit / pageSize
+pageSize = int(options.pageSize)*freq
+
+start = offset
+axEnd = pageSize
+axInit = 0
+
+
+annotations = rdann(record,options.annotator)
+pages = limit / pageSize + 1
+
+print totalSamples, offset, limit, pageSize
 
 print "Read " + str(len(data)) + " samples"
 print "Read " + str(len(annotations)) + " annotations"
