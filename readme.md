@@ -1,5 +1,9 @@
 ## mit2pdf
+
+
+
 Utility to generate an annotated PDF from a MIT-BIH record.
+
 
     Usage: mit2pdf [options]
 
@@ -25,4 +29,7 @@ Utility to generate an annotated PDF from a MIT-BIH record.
 Resulting PDFs will look like the [example pdf](example.pdf) in this repo, that was generated with:
  
       
-    ./mit2pdf -r 207 --limit 15000 --showSamples -d example.pdf
+    ./mit2pdf -r 203 --limit 15000 -p 5000 --showSamples -d example.pdf
+
+
+![mit2pdf example](example.jpg)

@@ -90,7 +90,7 @@ def plotAnnotations(annotations, filter, offset, channel, data):
         if (not filter or cls in filter) and sampleNumber > minSample:
             if sampleNumber < maxSample:
                 plt.axvline(x=sampleNumber - offset, color='black', linestyle=':', lw=0.8)
-                plt.text(sampleNumber - offset - 20, top, u'♡', color='black', fontsize=9)
+                #plt.text(sampleNumber - offset - 20, top, u'♡', color='black', fontsize=9)
                 plt.text(sampleNumber - offset, top, " " + cls, color='black',fontsize=11)
                 if showSamples:
                     plt.text(sampleNumber - offset + 5, bottom, str(sampleNumber), color='grey',fontsize=8)
