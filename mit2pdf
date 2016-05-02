@@ -222,7 +222,7 @@ axInit = 0
 pages = limit / pageSize
 print "Read " + str(len(data)) + " samples"
 print "Read " + str(len(annotations)) + " annotations"
-print "Generating PDF (" + str(pages) + " pages) " + ( " [Use --limit to print only a record fragment" if not options.limit else "...]")
+print "Generating PDF (" + str(pages) + " pages) " + ( " [Use --limit to print only a record fragment]" if not options.limit else "...")
 
 totalTime = 0
 pdf = PdfPages(options.output)
