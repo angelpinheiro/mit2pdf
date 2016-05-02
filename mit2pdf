@@ -1,0 +1,153 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+Created on Mon May 2 09:30:21 2016
+Utility to generate an annotated PDF from a MIT record
+
+Usage: ./mit2pdf [options]
+
+@author: Ángel Piñeiro Souto
+"""
+
+from StringIO import StringIO
+from optparse import OptionParser
+from matplotlib.backends.backend_pdf import PdfPages
+import matplotlib.pyplot as plt
+import numpy as np
+import subprocess
+import shlex
+import os
+
+
+def rdsamp(record):
+    """
+    Reads data from a MIT record, using rdsamp
+    """
+    args = shlex.split("rdsamp -r "+record+" -c")
+    p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = p.communicate()
+    data = np.genfromtxt(StringIO(out), delimiter=",", usecols=(1, 2))
+    return data
+
+def rdann(record,annotator="atr"):
+    """
+    Reads annotations from a MIT record, using rdann
+    """
+    args = shlex.split("rdann -r "+record+" -a "+annotator)
+    p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = p.communicate()
+    annotations = [line.split() for line in StringIO(out)]
+    return annotations
+
+def plotEcgPage(recordData, annotations,filter, samples, offset=0, pdf=None):
+    """
+    Plot a page of signal with annotations
+    """
+    pad = 2
+    data = []
+    for i in xrange(offset, offset + samples):
+        data.extend(recordData[i])
+
+    if len(data):
+        dataMin = min(data);
+        dataMax = max(data);
+        yAxInit = dataMin - (dataMax - dataMin) / 5
+        yAxEnd = dataMax + (dataMax - dataMin) / 5
+        for i in range(channels):
+            if pdf is not None:
+                fig = plt.gcf()
+                fig.set_size_inches(24+2*pad, 2 * channels)
+            sp = plt.subplot(channels, 1, i + 1)
+            sp.get_yaxis().set_visible(True)
+            sp.get_xaxis().set_visible(False)
+            sp.set_xlim(axInit, axEnd)
+            sp.set_ylim(yAxInit, yAxEnd)
+            sp.axis('off')
+            sp.plot(data[i::channels], linewidth=0.8)
+            plotAnnotations(annotations,filter,offset, i, data)
+        plt.tight_layout(pad=pad)
+        # show plot
+        if pdf is not None:
+            plt.suptitle('Record '+ recordName +' (samples ' + str(offset) + " to " + str(offset + len(data) / channels) + ")")
+            fig.savefig(pdf, format='pdf', dpi=600)
+            plt.close()
+        else:
+            plt.show()
+
+
+def plotAnnotations(annotations, filter, offset, channel, data):
+    """
+    Plot beat marks
+    """
+    minSample = offset
+    maxSample = offset + len(data) / channels
+    top = max(data)
+    bottom = min(data)
+    plt.text(1, top-(top-bottom)/2, "CH"+str(channel), color='green',fontsize=11)
+    for a in annotations:
+        sampleNumber = int(a[1])
+        cls = str(a[2])
+        if (not filter or cls in filter) and sampleNumber > minSample:
+            if sampleNumber < maxSample:
+                plt.axvline(x=sampleNumber - offset, color='black', linestyle=':', lw=0.8)
+                plt.text(sampleNumber - offset - 20, top, u'♡', color='black', fontsize=9)
+                plt.text(sampleNumber - offset, top, " " + cls, color='black',fontsize=11)
+                if showSamples:
+                    plt.text(sampleNumber - offset + 5, bottom, str(sampleNumber), color='grey',fontsize=8)
+            else:
+                break
+
+"""
+Main program
+"""
+parser = OptionParser()
+parser.add_option("-r", "--record", dest="record", default="", help="Record to print")
+parser.add_option("-a", "--annotator", dest="annotator", default="atr", help="Annotator")
+parser.add_option("-o", "--offset", dest="offset", default=0, help="First sample to print (default=0)")
+parser.add_option("-l", "--limit", dest="limit", default=0, help="Number of samples of each channel to print (default=all)")
+parser.add_option("-c", "--channels", dest="channels", default=2, help="Number of channels in the input file (default=2)")
+parser.add_option("-p", "--pageSize", dest="pageSize", default=3000, help="Number of samples per page (default=3000)")
+parser.add_option("-f", "--filter", dest="filter", default="", help="Filter beat classes shown Ex:N,V")
+parser.add_option("-d", "--destination", dest="output", default="ecg.pdf", help="Output file")
+parser.add_option("--showSamples", action="store_true", dest="showSamples", help="Show sample numbers")
+
+(options, args) = parser.parse_args()
+
+record = options.record
+recordName = os.path.basename(record)
+channels = int(options.channels)
+filter= options.filter.split(",") if options.filter else []
+limit = int(options.limit)
+offset = int(options.offset)
+pageSize = int(options.pageSize)
+showSamples = options.showSamples
+start = offset
+axEnd = pageSize
+axInit = 0
+
+# get record samples
+print "Loading data and annotations for record " + recordName + "..."
+data = rdsamp(record)
+annotations = rdann(record,options.annotator)
+totalSamples = len(data)
+samplesPerLead = totalSamples
+samples = min(samplesPerLead, offset + limit) if limit > 0 else samplesPerLead
+pages = samples / pageSize + 1
+
+print "Read " + str(len(data)) + " samples"
+print "Read " + str(len(annotations)) + " annotations"
+print "\nResulting PDF will have " + str(pages) + " pages"
+
+pdf = PdfPages(options.output)
+# iterate and print pages
+currentPage = 1
+while start < samples:
+    if start + pageSize > samples:
+        pageSize = samples - start
+    print "Printing page " + str(currentPage) + " of " + str(pages) + "..."
+    plotEcgPage(data, annotations, filter, pageSize,start, pdf)
+    start = start + pageSize
+    currentPage+=1
+pdf.close()
+
+print "Done. Check " + options.output
