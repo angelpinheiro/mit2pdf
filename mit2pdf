@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import subprocess
 import shlex
-import os
+import os, sys
 
 
 def rdsamp(record):
@@ -115,7 +115,7 @@ def plotAnnotations(annotations, header,filter, offset, channel, data):
         cls = str(a[2])
         if (not filter or cls in filter) and sampleNumber > minSample:
             if sampleNumber < maxSample:
-                plt.axvline(x=sampleNumber - offset, color='black', lw=0.8, alpha=0.5)
+                plt.axvline(x=sampleNumber - offset, color='black',  lw=0.9, alpha=0.9)
                 plt.text(sampleNumber - offset, top, " " + cls, color='black',fontsize=11)
                 if showSamples:
                     plt.text(sampleNumber - offset + 5, bottom, str(sampleNumber), color='grey',fontsize=8)
@@ -127,9 +127,10 @@ def plotGrid(top, bottom):
     Plot grid
     """
     pageWidthInSeconds = (pageSize/freq)
-    for i in xrange(0,pageWidthInSeconds):
-        for j in xrange(25):
-            plt.axvline(x=(i+float(j)/25)*1000, color='red', lw=0.1, alpha=.3 if j%5==0 else 0.1)
+    numberOfLines = pageWidthInSeconds*25
+    for i in xrange(1,numberOfLines+1):
+        pos = i*pageSize/numberOfLines
+        plt.axvline(x=pos, color='red', lw=0.1, alpha=.3 if i%5==0 else 0.1)
 
     for i in xrange(int(bottom)-1,int(top+1)):
         for j in xrange(10):
@@ -141,8 +142,8 @@ Main program
 parser = OptionParser()
 parser.add_option("-r", "--record", dest="record", default="", help="Record to print")
 parser.add_option("-a", "--annotator", dest="annotator", default="atr", help="Annotator")
-parser.add_option("-o", "--offset", dest="offset", default=0, help="Offset to start printing in seconds or as an absolute instant in the format hh:mm:ss (default=0)")
-parser.add_option("-l", "--limit", dest="limit", default=60, help="Limit to print in seconds or as an absolute instant in the format hh:mm:ss (default=60)")
+parser.add_option("-o", "--offset", dest="offset", default="0", help="Offset to start printing in seconds or as an absolute instant in the format hh:mm:ss (default=0)")
+parser.add_option("-l", "--limit", dest="limit", default="60", help="Limit to print in seconds or as an absolute instant in the format hh:mm:ss (default=60)")
 parser.add_option("-p", "--pageSize", dest="pageSize", default=10, help="Number of seconds per page (default=10)")
 parser.add_option("-f", "--filter", dest="filter", default="", help="Filter beat classes shown Ex:N,V")
 parser.add_option("-d", "--destination", dest="output", default="ecg.pdf", help="Output file")
@@ -156,9 +157,19 @@ showGrid = options.showGrid
 
 # get record path from options
 record = options.record
+
+if not record:
+    parser.print_help()
+    sys.exit(1)
+
 recordName = os.path.basename(record)
 # read header info
 header = wfdbdesc(record)
+
+if not 'freq' in header.keys():
+    print "Unable to find header file for record '" + recordName + "'"
+    sys.exit(1)
+
 # number of channels in the input file
 channels = len(header["channels"])
 freq = header["freq"]
