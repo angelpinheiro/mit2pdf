@@ -77,21 +77,24 @@ def plotEcgPage(recordData, annotations, header, filter, samples, offset=0, pdf=
         for i in range(channels):
             if pdf is not None:
                 fig = plt.gcf()
-                fig.set_size_inches(24+2*pad, 2 * channels)
+                fig.set_size_inches(24+2*pad, 4 * channels)
             sp = plt.subplot(channels, 1, i + 1)
             sp.get_yaxis().set_visible(True)
             sp.get_xaxis().set_visible(False)
             sp.set_xlim(axInit, axEnd)
             sp.set_ylim(yAxInit, yAxEnd)
             sp.axis('off')
+            if showGrid:
+                plotGrid(dataMax,dataMin)
             sp.plot(data[i::channels], linewidth=0.8)
             plotAnnotations(annotations,header,filter,offset, i, data)
+
         plt.tight_layout(pad=pad)
         # show plot
         if pdf is not None:
             fromStr =  str(timedelta(seconds=int(offset/header['freq'])))
             toStr = str(timedelta(seconds=int((offset + len(data) / channels)/header['freq'])))
-            plt.suptitle('Record '+ recordName +' - ' + fromStr + " to " + toStr)
+            plt.suptitle('Record '+ recordName +' - ' + fromStr + " to " + toStr + "  [ 1 square = 0.04sec/0.1mV ]")
             fig.savefig(pdf, format='pdf', dpi=600)
             plt.close()
         else:
@@ -112,12 +115,25 @@ def plotAnnotations(annotations, header,filter, offset, channel, data):
         cls = str(a[2])
         if (not filter or cls in filter) and sampleNumber > minSample:
             if sampleNumber < maxSample:
-                plt.axvline(x=sampleNumber - offset, color='black', linestyle=':', lw=0.8)
+                plt.axvline(x=sampleNumber - offset, color='black', lw=0.8, alpha=0.5)
                 plt.text(sampleNumber - offset, top, " " + cls, color='black',fontsize=11)
                 if showSamples:
                     plt.text(sampleNumber - offset + 5, bottom, str(sampleNumber), color='grey',fontsize=8)
             else:
                 break
+
+def plotGrid(top, bottom):
+    """
+    Plot grid
+    """
+    pageWidthInSeconds = (pageSize/freq)
+    for i in xrange(0,pageWidthInSeconds):
+        for j in xrange(25):
+            plt.axvline(x=(i+float(j)/25)*1000, color='red', lw=0.1, alpha=.3 if j%5==0 else 0.1)
+
+    for i in xrange(int(bottom)-1,int(top+1)):
+        for j in xrange(10):
+            plt.axhline(y=i+float(j)/10, color='red', lw=0.1, alpha=.3 if j == 0 or j==5 else 0.1)
 
 """
 Main program
@@ -131,10 +147,12 @@ parser.add_option("-p", "--pageSize", dest="pageSize", default=10, help="Number 
 parser.add_option("-f", "--filter", dest="filter", default="", help="Filter beat classes shown Ex:N,V")
 parser.add_option("-d", "--destination", dest="output", default="ecg.pdf", help="Output file")
 parser.add_option("--showSamples", action="store_true", dest="showSamples", help="Show sample numbers")
+parser.add_option("--showGrid", action="store_true", dest="showGrid", help="Show grid")
 
 (options, args) = parser.parse_args()
 filter= options.filter.split(",") if options.filter else []
 showSamples = options.showSamples
+showGrid = options.showGrid
 
 # get record path from options
 record = options.record
@@ -166,12 +184,13 @@ axEnd = pageSize
 axInit = 0
 
 # get record samples
-print "Record info: ", header
+# print "Record info: ", header
 print "Loading data and annotations for record " + recordName + "..."
 
 data = rdsamp(record)
 gain = header["channels"][0]["gain"]
-data = data * gain
+data = data / gain
+
 annotations = rdann(record,options.annotator)
 totalSamples = len(data)
 samplesPerLead = totalSamples
