@@ -25,10 +25,15 @@ Utility to generate an annotated PDF from a MIT-BIH record.
 
  
 
-Resulting PDFs will look like the [example pdf](example.pdf) in this repo, that was generated with:
- 
-      
-    ./mit2pdf -r 203 -d example.pdf --showSamples --showGrid -f V,N --offset 00:00:10 --limit 00:00:30 --pageSize 10
+Example:     
+    
+    ./mit2pdf -r 203_250 -d example.pdf --showSamples --showGrid -f V,N --limit 00:03:30 --pageSize 10
+    Loading data and annotations for record 203_250...
+    Read 451388 samples
+    Read 3108 annotations
+    Generating PDF (21 pages) ...]
+    Progress: [####################################--------------] 71.43% Complete. 0:00:04 remaining.
+
 
 
 ![mit2pdf example](example.jpg)
