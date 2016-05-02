@@ -13,6 +13,7 @@ from StringIO import StringIO
 from optparse import OptionParser
 from matplotlib.backends.backend_pdf import PdfPages
 from datetime import datetime, timedelta
+import time
 import matplotlib.pyplot as plt
 import numpy as np
 import subprocess
@@ -136,6 +137,16 @@ def plotGrid(top, bottom):
         for j in xrange(10):
             plt.axhline(y=i+float(j)/10, color='red', lw=0.1, alpha=.3 if j == 0 or j==5 else 0.1)
 
+# Print iterations progress
+def printProgress (iteration, total, prefix = '', suffix = '', decimals = 2, barLength = 100):
+    filledLength    = int(round(barLength * iteration / float(total)))
+    percents        = round(100.00 * (iteration / float(total)), decimals)
+    bar             = '#' * filledLength + '-' * (barLength - filledLength)
+    sys.stdout.write('%s [%s] %s%s %s\r' % (prefix, bar, percents, '%', suffix)),
+    sys.stdout.flush()
+    if iteration == total:
+        print("\n")
+
 """
 Main program
 """
@@ -178,8 +189,8 @@ freq = header["freq"]
 # get record samples
 # print "Record info: ", header
 print "Loading data and annotations for record " + recordName + "..."
-
 data = rdsamp(record)
+annotations = rdann(record,options.annotator)
 gain = header["channels"][0]["gain"]
 data = data / gain
 totalSamples = len(data)
@@ -193,13 +204,13 @@ else:
     offset=int(options.offset)*freq
 
 if not options.limit:
-    limit = totalSamples - offset
+    limit = totalSamples
 elif ":" in options.limit:
     t = datetime.strptime(options.limit,"%H:%M:%S")
     secs = timedelta(hours=t.hour, minutes=t.minute, seconds=t.second).total_seconds()
     limit = int(secs*freq-offset)
 else:
-    limit=int(options.limit) - offset *freq
+    limit=int(options.limit)*freq
 
 
 samples = min(samplesPerLead, offset + limit) if limit > 0 else samplesPerLead
@@ -208,25 +219,25 @@ pageSize = int(options.pageSize)*freq
 start = offset
 axEnd = pageSize
 axInit = 0
-
-
-annotations = rdann(record,options.annotator)
-pages = limit / pageSize + 1
-
-print totalSamples, offset, limit, pageSize
-
+pages = limit / pageSize
 print "Read " + str(len(data)) + " samples"
 print "Read " + str(len(annotations)) + " annotations"
-print "\nResulting PDF will have " + str(pages) + " pages"
+print "Generating PDF (" + str(pages) + " pages) " + ( " [Use --limit to print only a record fragment" if not options.limit else "...]")
 
+totalTime = 0
 pdf = PdfPages(options.output)
 # iterate and print pages
 currentPage = 1
 while start < samples:
     if start + pageSize > samples:
         pageSize = samples - start
-    print "Printing page " + str(currentPage) + " of " + str(pages) + "..."
+    start_time = time.time()
     plotEcgPage(data, annotations, header, filter, pageSize,start, pdf)
+    elapsed_time = time.time() - start_time
+    totalTime += elapsed_time;
+    remaining = timedelta(seconds= totalTime/currentPage * (pages-currentPage));
+    formattedTd = str(remaining).split('.')[0]
+    printProgress(currentPage, pages, prefix = 'Progress:', suffix = 'Complete. ' + formattedTd + " remaining.", barLength = 50)
     start = start + pageSize
     currentPage+=1
 pdf.close()
