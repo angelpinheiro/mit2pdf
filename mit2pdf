@@ -107,7 +107,7 @@ def plotEcgPage(recordData, annotations, header, filter, samples, beatInfo, offs
         if pdf is not None:
             fromStr =  str(timedelta(seconds=int(offset/header['freq'])))
             toStr = str(timedelta(seconds=int((offset + len(data) / channels)/header['freq'])))
-            plt.suptitle('Record '+ recordName +' - ' + fromStr + " to " + toStr + "  [ 1 square = 0.04sec/0.1mV ]")
+            plt.suptitle('Record '+ recordName +' - ' + fromStr + " to " + toStr + ("  [ 1 square = 0.04sec/0.1mV ]" if showGrid else ""))
             fig.savefig(pdf, format='pdf', dpi=600)
             plt.close()
         else:
