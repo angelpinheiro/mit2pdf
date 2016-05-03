@@ -87,7 +87,7 @@ def plotEcgPage(recordData, annotations, header, filter, samples, beatInfo, offs
         for i in range(channels):
             if pdf is not None:
                 fig = plt.gcf()
-                fig.set_size_inches(24+2*pad, 4 * channels)
+                fig.set_size_inches(float(options.pageSize)*2.4+2*pad, 4 * channels)
             sp = plt.subplot(channels, 1, i + 1)
             sp.get_yaxis().set_visible(True)
             sp.get_xaxis().set_visible(False)
