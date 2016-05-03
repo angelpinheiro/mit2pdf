@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import subprocess
 import shlex
+import json
 import os, sys
 
 
@@ -61,11 +62,20 @@ def wfdbdesc(record):
             info['channels'].append(chan)
     return info
 
-def plotEcgPage(recordData, annotations, header, filter, samples, offset=0, pdf=None):
+def readBeatAnnotations(beatInfoFile):
+    """
+    Load annotations from a csv file: [sample, channel, type, label]
+    """
+    beatInfo = []
+    if beatInfoFile != "":
+        beatInfo = [line.strip().split(",") for line in open(beatInfoFile)]
+    return beatInfo
+
+def plotEcgPage(recordData, annotations, header, filter, samples, beatInfo, offset=0, pdf=None):
     """
     Plot a page of signal with annotations
     """
-    pad = 2
+    pad = 3
     data = []
     for i in xrange(offset, offset + samples):
         data.extend(recordData[i])
@@ -73,8 +83,8 @@ def plotEcgPage(recordData, annotations, header, filter, samples, offset=0, pdf=
     if len(data):
         dataMin = min(data);
         dataMax = max(data);
-        yAxInit = dataMin - (dataMax - dataMin) / 5
-        yAxEnd = dataMax + (dataMax - dataMin) / 5
+        yAxInit = dataMin - (dataMax - dataMin) / 4
+        yAxEnd = dataMax + (dataMax - dataMin) / 3
         for i in range(channels):
             if pdf is not None:
                 fig = plt.gcf()
@@ -86,9 +96,11 @@ def plotEcgPage(recordData, annotations, header, filter, samples, offset=0, pdf=
             sp.set_ylim(yAxInit, yAxEnd)
             sp.axis('off')
             if showGrid:
-                plotGrid(dataMax,dataMin)
-            sp.plot(data[i::channels], linewidth=0.8)
+                plotGrid(yAxEnd,yAxInit)
+            sp.plot(data[i::channels], linewidth=0.7, color="blue")
             plotAnnotations(annotations,header,filter,offset, i, data)
+            if showBeatInfo:
+                plotBeatAnnotations(beatInfo,offset, i, data)
 
         plt.tight_layout(pad=pad)
         # show plot
@@ -110,18 +122,58 @@ def plotAnnotations(annotations, header,filter, offset, channel, data):
     maxSample = offset + len(data) / channels
     top = max(data)
     bottom = min(data)
-    plt.text(1, top-(top-bottom)/2, header['channels'][channel]['description'], color='green',fontsize=11)
+    bottom = bottom -(top-bottom)/3
+    plt.text(15, top+0.5, header['channels'][channel]['description'], color='black',fontsize=14)
     for a in annotations:
         sampleNumber = int(a[1])
         cls = str(a[2])
         if (not filter or cls in filter) and sampleNumber > minSample:
             if sampleNumber < maxSample:
-                plt.axvline(x=sampleNumber - offset, color='black',  lw=0.9, alpha=0.9)
-                plt.text(sampleNumber - offset, top, " " + cls, color='black',fontsize=11)
+                plt.axvline(x=sampleNumber - offset, color='black', linestyle="dashed", lw=0.8, alpha=0.8) #linestyle="-",
+                plt.text(sampleNumber - offset, top, " " + cls, color='black',fontsize=14)
                 if showSamples:
                     plt.text(sampleNumber - offset + 5, bottom, str(sampleNumber), color='grey',fontsize=8)
             else:
                 break
+
+def plotBeatAnnotations(beatInfo, offset, channel, data):
+    """
+    Plot beat marks
+    """
+    minSample = offset
+    maxSample= offset + len(data)/channels
+    for a in beatInfo:
+        sampleNumber = int(a[0])
+        chan= a[1]
+        if sampleNumber > minSample:
+            if sampleNumber < maxSample:
+                if chan=="*" or channel == int(chan):
+                    type=a[2]
+                    label = a[3]
+                    plotBeatAnnotaion(plt, sampleNumber, type, offset, sampleVal=sampleValue(sampleNumber, channel), label=label)
+            else:
+                break;
+
+def sampleValue(position, channel=0):
+    return recordData[position][channel]
+
+
+def plotBeatAnnotaion(plt, pos, type, offset, sampleVal, label=""):
+    """
+    Plot wave mark
+    """
+    color= "green" if label == "p" else 'orange' if label == "t" else "brown"
+    textcolor = "black"
+    if type == "^":
+        x = pos - offset
+        y0 = sampleVal - 0.2
+        y1 = sampleVal + 0.2
+        plt.plot([x,x],[y0,y1], linestyle='-', lw=1, color=color)
+        plt.text(pos - offset - (10 if label == "r" else 2.5), sampleVal - 0.35 , label, fontsize=11, color=textcolor,alpha=0.9)
+    else:
+        symbol = type
+        plt.text(pos - offset, sampleVal-0.05 , symbol, fontsize=19, color=color,alpha=1)
+
 
 def plotGrid(top, bottom):
     """
@@ -157,6 +209,7 @@ parser.add_option("-o", "--offset", dest="offset", default="0", help="Offset to 
 parser.add_option("-l", "--limit", dest="limit", default="", help="Limit to print in seconds or as an absolute instant in the format hh:mm:ss (default=None)")
 parser.add_option("-p", "--pageSize", dest="pageSize", default=10, help="Number of seconds per page (default=10)")
 parser.add_option("-f", "--filter", dest="filter", default="", help="Filter beat classes shown Ex:N,V")
+parser.add_option("-b", "--beatInfo", dest="beatInfo", default="", help="File with beat info (i.e. waves, peaks, ...)")
 parser.add_option("-d", "--destination", dest="output", default="ecg.pdf", help="Output file")
 parser.add_option("--showSamples", action="store_true", dest="showSamples", help="Show sample numbers")
 parser.add_option("--showGrid", action="store_true", dest="showGrid", help="Show grid")
@@ -165,6 +218,8 @@ parser.add_option("--showGrid", action="store_true", dest="showGrid", help="Show
 filter= options.filter.split(",") if options.filter else []
 showSamples = options.showSamples
 showGrid = options.showGrid
+beatInfoFile=options.beatInfo
+showBeatInfo = True if beatInfoFile else False
 
 # get record path from options
 record = options.record
@@ -186,14 +241,17 @@ channels = len(header["channels"])
 freq = header["freq"]
 
 
+
 # get record samples
 # print "Record info: ", header
 print "Loading data and annotations for record " + recordName + "..."
-data = rdsamp(record)
+recordData = rdsamp(record)
 annotations = rdann(record,options.annotator)
+beatInfo = readBeatAnnotations(beatInfoFile) if showBeatInfo else []
+beatInfo.sort(key=lambda x: int(x[0]))
 gain = header["channels"][0]["gain"]
-data = data / gain
-totalSamples = len(data)
+recordData = recordData / gain
+totalSamples = len(recordData)
 samplesPerLead = totalSamples
 
 if ":" in options.offset:
@@ -212,7 +270,6 @@ elif ":" in options.limit:
 else:
     limit=int(options.limit)*freq
 
-
 samples = min(samplesPerLead, offset + limit) if limit > 0 else samplesPerLead
 pageSize = int(options.pageSize)*freq
 
@@ -220,9 +277,11 @@ start = offset
 axEnd = pageSize
 axInit = 0
 pages = limit / pageSize
-print "Read " + str(len(data)) + " samples"
+print "Read " + str(len(recordData)) + " samples"
 print "Read " + str(len(annotations)) + " annotations"
 print "Generating PDF (" + str(pages) + " pages) " + ( " [Use --limit to print only a record fragment]" if not options.limit else "...")
+
+
 
 totalTime = 0
 pdf = PdfPages(options.output)
@@ -232,7 +291,7 @@ while start < samples:
     if start + pageSize > samples:
         pageSize = samples - start
     start_time = time.time()
-    plotEcgPage(data, annotations, header, filter, pageSize,start, pdf)
+    plotEcgPage(recordData, annotations, header, filter, pageSize,beatInfo,start, pdf)
     elapsed_time = time.time() - start_time
     totalTime += elapsed_time;
     remaining = timedelta(seconds= totalTime/currentPage * (pages-currentPage));
