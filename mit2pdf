@@ -21,39 +21,46 @@ import shlex
 import json
 import os, sys
 
-QRS_ANNS = [ 'N', 'L','R','B','A','a','J','S','V','r','F','e','j','n','E','/','f','Q','?']
+QRS_ANNS = ['N', 'L','R','B','A','a','J','S','V','r','F','e','j','n','E','/','f','Q','?']
 
 def rdsamp(record):
     """
     Reads data from a MIT record, using rdsamp
     """
-    args = shlex.split("rdsamp -r "+record+" -c")
+    cmd = "rdsamp -r "+record+" -c"
+    print "  Running $ " +  cmd + " ..."
+    args = shlex.split(cmd)
     p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = p.communicate()
     data = np.genfromtxt(StringIO(out), delimiter=",", usecols=(1, 2))
     return data
 
-def rdann(record,annotators=[]):
+def rdann(record,annotators=[], filter=[]):
     """
     Reads annotations from a MIT record, using rdann
     """
     annotations = []
     for annotator in annotators:
-        print "Reading annotations from " + annotator + " annotator..."
-        args = shlex.split("rdann -r "+record+" -a "+annotator)
+        #print "Reading annotations from " + annotator + " annotator..."
+        cmd = "rdann -r "+record+" -a "+annotator
+        if len(filter):
+            cmd += " -p " + (" ".join(filter))
+
+        print "  Running $ " +  cmd + " ..."
+        args = shlex.split(cmd)
         p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = p.communicate()
         anns = [line.split() for line in StringIO(out)]
         annotations.extend(anns)
-        print "Added " + str(len(anns)) + " annotations. " + str(len(annotations)) + " total."
-
     return annotations
 
 def wfdbdesc(record):
     """
     Get info from a MIT record, using wfdbdesc
     """
-    args = shlex.split("wfdbdesc "+record)
+    cmd = "wfdbdesc "+record
+    print "  Running $ " +  cmd + " ..."
+    args = shlex.split(cmd)
     p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = p.communicate()
     info = {'channels':[]}
@@ -238,6 +245,8 @@ if not record:
     sys.exit(1)
 
 recordName = os.path.basename(record)
+
+print "Loading record " + recordName + "..."
 # read header info
 header = wfdbdesc(record)
 
@@ -249,15 +258,9 @@ if not 'freq' in header.keys():
 channels = len(header["channels"])
 freq = header["freq"]
 
-
-
-# get record samples
-# print "Record info: ", header
-print "Loading data and annotations for record " + recordName + "..."
 recordData = rdsamp(record)
-
 annotators = options.annotator.split(",")
-annotations = rdann(record,annotators)
+annotations = rdann(record,annotators,filter)
 annotations.sort(key=lambda x: int(x[1]))
 
 gain = header["channels"][0]["gain"]
