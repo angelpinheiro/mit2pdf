@@ -92,14 +92,22 @@ def plotEcgPage(recordData, annotations, header, filter, samples, offset=0,lastD
          return
 
     padding = 3
-    dataMin = min(data);
-    dataMax = max(data);
-    yAxInit = dataMin - (dataMax - dataMin) / 4
-    yAxEnd = dataMax + (dataMax - dataMin) / 3
+
+    dataRange = recordData.max() - recordData.min() if options.sameScale else max(data) - min(data)
+    dataRange = max(dataRange,4)
+
     for i in range(channels):
+
+        channelData = data[i::channels]
+        dataMin = min(channelData);
+        dataMax = max(channelData);
+        channelCenter = dataMin + (dataMax-dataMin)/2
+        yAxInit = channelCenter - dataRange/2 - dataRange/6
+        yAxEnd = channelCenter + dataRange/2 + dataRange/6
+
         if pdf is not None:
             fig = plt.gcf()
-            fig.set_size_inches(float(options.pageSize)*2.4+2*padding, 4 * channels)
+            fig.set_size_inches(float(options.pageSize)*2.4+2*padding, max(dataRange*0.75,5)*channels)
         sp = plt.subplot(channels, 1, i + 1)
         sp.get_yaxis().set_visible(True)
         sp.get_xaxis().set_visible(False)
@@ -108,8 +116,8 @@ def plotEcgPage(recordData, annotations, header, filter, samples, offset=0,lastD
         sp.axis('off')
         if showGrid:
             plotGrid(yAxEnd,yAxInit)
-        sp.plot(data[i::channels], linewidth=0.7, color="blue")
-        plotAnnotations(annotations,header,filter,offset, i, data, lastDrawn)
+        sp.plot(channelData, linewidth=0.7, color="blue")
+        plotAnnotations(annotations,header,filter,offset, i, channelData, lastDrawn,yAxInit,yAxEnd,dataRange)
 
     plt.tight_layout(pad=padding)
     fromStr =  str(timedelta(seconds=int(offset/header['freq'])))
@@ -119,16 +127,15 @@ def plotEcgPage(recordData, annotations, header, filter, samples, offset=0,lastD
     plt.close()
 
 
-def plotAnnotations(annotations, header,filter, offset, channel, data, lastDrawn):
+def plotAnnotations(annotations, header,filter, offset, channel, data, lastDrawn,yAxInit,yAxEnd,dataRange):
     """
     Plot annotations
     """
     minSample = offset
-    maxSample = offset + len(data) / channels
-    top = max(data)
-    bottom = min(data)
-    bottom = bottom -(top-bottom)/3
-    plt.text(-25, top+1, header['channels'][channel]['description'], color='black',fontsize=16)
+    maxSample = offset + len(data)
+    top = yAxEnd
+    bottom = yAxInit
+    plt.text(-60, yAxInit + (yAxEnd-yAxInit)/2 , header['channels'][channel]['description'], color='black',fontsize=16)
     for annotation in annotations[lastDrawn:len(annotations)]:
         if (not filter or annotation['type'] in filter) and annotation['sampleNumber'] > minSample:
             if annotation['sampleNumber'] < maxSample :
@@ -146,11 +153,15 @@ def plotAnnotaion(a, offset, top, bottom, channel):
     position = a["sampleNumber"]
     sampVal = sampleValue(position, channel)
 
+    tp = top - (top-bottom)/6    # at the top
+    bt = bottom + (top-bottom)/9 # at the bottom of the grid
+    sb = bottom - (top-bottom)/12 # below grid
+
     # beat annotations
     if a['type'] in QRS_ANNS:
         plt.axvline(x=position - offset, color='black', linestyle="dashed", lw=0.8, alpha=0.8)
-        plt.text(position - offset, top + 0.4, " " + a['type'], color='black',fontsize=14)
-        plt.text(position - offset + 5, bottom, str(position), color='grey',fontsize=8)
+        plt.text(position - offset + 10, tp, a['type'], color='black',fontsize=14, fontweight="bold")
+        plt.text(position - offset + 5, sb, str(position), color='grey',fontsize=8)
     # wave start and end annotations
     elif a['type'] in [ "(", ")"] and a["channel"] == channel:
         x = position - offset
@@ -180,8 +191,8 @@ def plotAnnotaion(a, offset, top, bottom, channel):
         x = position - offset
         plt.axvline(x=position - offset, ymin=0.05, ymax=0.2, color='green', linestyle="-", lw=1.5, alpha=1)
         plt.axvline(x=position - offset, ymin=0.8, ymax=0.95, color='green', linestyle="-", lw=1.5, alpha=1)
-        plt.text(position - offset, top + 0.4, " " + textUp, color='black',fontsize=16)
-        plt.text(position - offset, bottom + 0.8, " " + textDown, color='black',fontsize=16)
+        plt.text(position - offset, tp, " " + textUp, color='black',fontsize=16)
+        plt.text(position - offset, bt, " " + textDown, color='black',fontsize=16)
 
 def plotGrid(top, bottom):
     """
@@ -221,12 +232,14 @@ parser.add_option("-p", "--pageSize", dest="pageSize", default=10, help="Number 
 parser.add_option("-f", "--filter", dest="filter", default="", help="Filter beat classes shown Ex:N,V")
 parser.add_option("-d", "--destination", dest="output", default="ecg.pdf", help="Output file")
 parser.add_option("--showSamples", action="store_true", dest="showSamples", help="Show sample numbers")
-parser.add_option("--showGrid", action="store_true", dest="showGrid", help="Show grid")
+parser.add_option("--noGrid", action="store_true", dest="noGrid", help="Show grid")
+parser.add_option("--sameScale", action="store_true", dest="sameScale", help="Use same scale on all pages (reduces space optimization)")
+
 
 (options, args) = parser.parse_args()
 filter= options.filter.split(",") if options.filter else []
 showSamples = options.showSamples
-showGrid = options.showGrid
+showGrid = False if options.noGrid else True
 
 # get record path from options
 record = options.record

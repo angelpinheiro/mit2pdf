@@ -7,17 +7,17 @@ Utility to generate an annotated PDF from a WFDB MIT record.
 This tool relies on the [WFDB software package](http://www.physionet.org/physiotools/wfdb.shtml) for signal and annotation reading purposes.
 Once this dependency is satisfied, you can generate an annotated PDF from a record or a record fragment as shown in the following examples:
 
-- Limit result to 50 seconds, use atr annotator, show grid and plot pages of 5 seconds:
+- Limit result to 50 seconds, use atr annotator and plot pages of 5 seconds:
 
-        ./mit2pdf -r data/105 -a atr -l 50 --showGrid -d result.pdf -p 5
+        ./mit2pdf -r data/105 -a atr -l 50 -d result.pdf -p 5
 
-- Plot 20 seconds from second 00:24, and show only N,V and + annotations :
+- Plot 20 seconds from second 00:24, hide grid and show only N,V and + annotations :
 
-        ./mit2pdf  -r data/207 -o 00:00:24 -l 20 --showGrid --filter N,V,\+
+        ./mit2pdf -r data/207 -o 00:00:24 -l 20 --noGrid --filter N,V,\+
 
 - Plot the full record with the default options:
 
-        ./mit2pdf  -r data/207
+        ./mit2pdf -r data/207
 
   ***(!)*** *Exporting a full 30 min record may take around half a minute (or five times that with grid) and result in a pdf document of 180 pages.*
 
@@ -58,3 +58,7 @@ Fragment from the record 207 of the  MIT-BIH Arrhythmia Database:
  `-f FILTER` `--filter=FILTER` Filter beat classes shown Ex:N,V
 
  `-d OUTPUT` `--destination=OUTPUT` Output file
+
+ `--sameScale`  Use the same scale in all pages (reduces space optimization)
+
+ `--noGrid`  Hide grid
