@@ -81,7 +81,7 @@ def wfdbdesc(record):
 def sampleValue(position, channel=0):
     return recordData[position][channel]
 
-def plotEcgPage(recordData, annotations, header, filter, samples, beatInfo, offset=0,lastDrawn=0, pdf=None):
+def plotEcgPage(recordData, annotations, header, filter, samples, offset=0,lastDrawn=0, pdf=None):
     """
     Plot a page of signal with annotations
     """
@@ -219,7 +219,6 @@ parser.add_option("-o", "--offset", dest="offset", default="0", help="Offset to 
 parser.add_option("-l", "--limit", dest="limit", default="", help="Limit to print in seconds or as an absolute instant in the format hh:mm:ss (default=None)")
 parser.add_option("-p", "--pageSize", dest="pageSize", default=10, help="Number of seconds per page (default=10)")
 parser.add_option("-f", "--filter", dest="filter", default="", help="Filter beat classes shown Ex:N,V")
-parser.add_option("-b", "--beatInfo", dest="beatInfo", default="", help="File with beat info (i.e. waves, peaks, ...)")
 parser.add_option("-d", "--destination", dest="output", default="ecg.pdf", help="Output file")
 parser.add_option("--showSamples", action="store_true", dest="showSamples", help="Show sample numbers")
 parser.add_option("--showGrid", action="store_true", dest="showGrid", help="Show grid")
@@ -228,8 +227,6 @@ parser.add_option("--showGrid", action="store_true", dest="showGrid", help="Show
 filter= options.filter.split(",") if options.filter else []
 showSamples = options.showSamples
 showGrid = options.showGrid
-beatInfoFile=options.beatInfo
-showBeatInfo = True if beatInfoFile else False
 
 # get record path from options
 record = options.record
@@ -299,7 +296,7 @@ while start < samples:
     if start + pageSize > samples:
         pageSize = samples - start
     start_time = time.time()
-    plotEcgPage(recordData, annotations, header, filter, pageSize,[],start, lastDrawn, pdf)
+    plotEcgPage(recordData, annotations, header, filter, pageSize,start, lastDrawn, pdf)
     elapsed_time = time.time() - start_time
     totalTime += elapsed_time;
     remaining = timedelta(seconds= totalTime/currentPage * (pages-currentPage));

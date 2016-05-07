@@ -57,6 +57,4 @@ Fragment from the record 207 of the  MIT-BIH Arrhythmia Database:
 
  `-f FILTER` `--filter=FILTER` Filter beat classes shown Ex:N,V
 
- `-b BEATINFO` `--beatInfo=BEATINFO` File with beat info (i.e. waves, peaks, ...)
-
  `-d OUTPUT` `--destination=OUTPUT` Output file
